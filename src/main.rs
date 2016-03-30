@@ -3,7 +3,6 @@ extern crate rss;
 extern crate chrono;
 
 use std::io::*;
-use std::ops::Sub;
 
 use hyper::Client;
 use hyper::header::Connection;
@@ -11,20 +10,25 @@ use rss::{Rss, Channel};
 use chrono::*;
 
 fn main() {
-    let start_time = Local::now().time();
+    let mut tick_time = Local::now();
 
-    match read_rss() {
-        Some(channel) => {
-            println!("Title:       {}", channel.title);
-            println!("Link:        {}", channel.link);
-            println!("Description: {}", channel.description);
-            println!("Items:       {}", channel.items.len());
+    loop {
+        let current_time = Local::now();
+
+        if current_time > tick_time {
+            match read_rss() {
+                Some(channel) => {
+                    println!("Title:       {}", channel.title);
+                    println!("Link:        {}", channel.link);
+                    println!("Description: {}", channel.description);
+                    println!("Items:       {}", channel.items.len());
+                }
+                None => println!("Could not read RSS"),
+            }
+
+            tick_time = current_time + Duration::seconds(30);
         }
-        None => println!("Could not read RSS"),
     }
-
-    let total = Local::now().time().sub(start_time);
-    println!("time: {}", total);
 }
 
 fn read_rss() -> Option<Channel> {
