@@ -1,25 +1,45 @@
-use std::io::*;
+//use std::thread;
 
-use hyper::Client;
-use hyper::header::Connection;
-use rss::{Rss, Channel};
+use self::rss_channel::RssChannel;
+use chrono::*;
 
-pub fn read_rss() -> Option<Channel> {
-    let client = Client::new();
+mod rss_channel;
 
-    let mut res = client.get("https://www.gamingonlinux.com/article_rss.php")
-                        .header(Connection::close())
-                        .send()
-                        .unwrap();
+pub struct Collector {
+    items: Vec<RssChannel>
+}
 
-    let mut body = String::new();
-    res.read_to_string(&mut body).unwrap();
+impl Collector {
+    pub fn new() -> Collector {
+        let mut temp_vec = Vec::new();
+        let temp_rss = RssChannel::new("https://www.gamingonlinux.com/article_rss.php".to_owned(), Duration::seconds(3));
+        temp_vec.push(temp_rss);
+        
+        Collector {
+            items: temp_vec
+        }
+    }
 
-    match body.parse::<Rss>() {
-        Ok(p) => Some(p.0),
-        Err(e) => {
-            println!("Error: {}", e);
-            None
+    pub fn collect(&mut self) {
+        loop {
+            let current_time = Local::now();
+
+            for i in &mut self.items {
+                if current_time > i.tick {
+                    // thread::spawn(move || {
+                        match i.read() {
+                            Some(channel) => {
+                                println!("Title:       {}", channel.title);
+                                println!("Link:        {}", channel.link);
+                                println!("Description: {}", channel.description);
+                                println!("Items:       {}", channel.items.len());
+                            }
+                            None => println!("Could not read RSS"),
+                        }
+                    // });
+                    i.tick = current_time + i.refresh;
+                }
+            }
         }
     }
 }
